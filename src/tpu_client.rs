@@ -2,12 +2,17 @@
 //!
 //! `TpuClientCc` wraps the congestion controller and provides a simple API
 //! for sending transactions with automatic backpressure management.
-//! It does **not** open real QUIC connections — it delegates to a pluggable
-//! `Sender` trait so the core logic is fully testable without network access.
+//! Pluggable `Sender` trait: use `SimulatedSender` for tests,
+//! `RpcSender` for real devnet/mainnet traffic.
 
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
-use solana_sdk::transaction::Transaction;
+use solana_rpc_client::rpc_client::RpcClient;
+use solana_rpc_client_api::config::RpcSendTransactionConfig;
+use solana_sdk::{commitment_config::CommitmentConfig, transaction::Transaction};
 
 use crate::{
     congestion::CongestionController,
@@ -24,6 +29,49 @@ pub trait Sender: Send + Sync {
     /// Returns the number of milliseconds until an acknowledgement was
     /// observed (or an estimate thereof).
     fn send(&self, tx: &Transaction) -> TpuCcResult<f64>;
+}
+
+// ─── RPC sender (real devnet / mainnet) ─────────────────────────────────────
+
+/// A `Sender` backed by a real Solana RPC endpoint.
+///
+/// Uses the synchronous `solana-rpc-client` so it fits naturally into the
+/// existing synchronous `Sender` trait without requiring Tokio on the call
+/// path. The measured RTT is the wall-clock time of the `sendTransaction`
+/// RPC round-trip, which is a reasonable proxy for network latency.
+pub struct RpcSender {
+    client: RpcClient,
+    send_cfg: RpcSendTransactionConfig,
+}
+
+impl RpcSender {
+    /// Connect to the given RPC URL with `confirmed` commitment.
+    pub fn new(rpc_url: &str) -> Self {
+        Self::with_commitment(rpc_url, CommitmentConfig::confirmed())
+    }
+
+    /// Connect with an explicit commitment level.
+    pub fn with_commitment(rpc_url: &str, commitment: CommitmentConfig) -> Self {
+        Self {
+            client: RpcClient::new_with_commitment(rpc_url.to_string(), commitment),
+            send_cfg: RpcSendTransactionConfig {
+                skip_preflight: true,   // caller is responsible for preflight
+                max_retries:    Some(0), // we manage retries in TpuClientCc
+                ..Default::default()
+            },
+        }
+    }
+}
+
+impl Sender for RpcSender {
+    /// Send the transaction and return the RPC round-trip time in ms.
+    fn send(&self, tx: &Transaction) -> TpuCcResult<f64> {
+        let t0 = Instant::now();
+        self.client
+            .send_transaction_with_config(tx, self.send_cfg)
+            .map_err(|e| TpuCcError::Connection(e.to_string()))?;
+        Ok(t0.elapsed().as_secs_f64() * 1_000.0)
+    }
 }
 
 // ─── Simulated sender (for testing / demo) ──────────────────────────────────

@@ -29,7 +29,7 @@ pub mod types;
 pub use congestion::CongestionController;
 pub use error::{TpuCcError, TpuCcResult};
 pub use metrics::{format_metrics, format_prometheus, MetricsRecorder, MetricsSnapshot};
-pub use tpu_client::{Sender, SimulatedSender, TpuClientCc};
+pub use tpu_client::{RpcSender, Sender, SimulatedSender, TpuClientCc};
 pub use types::{
     CongestionConfig, CongestionPhase, RttEstimate, SendStats, WindowState,
     SLOT_DURATION_MS, WINDOW_INITIAL, WINDOW_MAX, WINDOW_MIN,
