@@ -1,359 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>solana-tpu-client-cc · Congestion Control Dashboard</title>
-  <style>
-    :root {
-      --bg: #0d1117; --surface: #161b22; --border: #30363d;
-      --text: #e6edf3; --muted: #8b949e; --accent: #9945ff;
-      --green: #3fb950; --yellow: #d29922; --red: #f85149;
-      --blue: #58a6ff;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; padding: 24px; }
-    header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
-    header h1 { font-size: 1.4rem; font-weight: 700; }
-    header span { background: var(--accent); color: #fff; border-radius: 4px; padding: 2px 10px; font-size: .75rem; font-weight: 600; }
-    .tagline { color: var(--muted); font-size: .9rem; margin-top: 2px; }
-
-    /* Cards */
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 28px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
-    .card-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-    .card-value { font-size: 2rem; font-weight: 700; margin-top: 4px; }
-    .card-unit  { font-size: .8rem; color: var(--muted); }
-
-    /* Phase badge */
-    .phase-badge { display: inline-block; border-radius: 20px; padding: 3px 12px; font-size: .78rem; font-weight: 600; }
-    .phase-slow { background: #1f3a6e; color: var(--blue); }
-    .phase-avoidance { background: #1a3a2a; color: var(--green); }
-    .phase-recovery  { background: #3a1a1a; color: var(--red); }
-
-    /* Charts */
-    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
-    @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
-    .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
-    .chart-title { font-size: .82rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
-    canvas { width: 100% !important; }
-
-    /* Window bar */
-    .window-bar-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 28px; }
-    .window-bar-label { font-size: .82rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
-    .window-bar-bg { background: var(--border); border-radius: 6px; height: 24px; overflow: hidden; }
-    .window-bar-fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width .4s ease; }
-    .window-bar-labels { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-top: 6px; }
-
-    /* Controls */
-    .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; align-items: center; }
-    button { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: .87rem; font-weight: 600; cursor: pointer; transition: opacity .15s; }
-    button:hover { opacity: .85; }
-    button.secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
-    label { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-    select, input[type=range] { accent-color: var(--accent); }
-    select { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; }
-
-    /* Log */
-    .log-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; max-height: 180px; overflow-y: auto; font-family: 'Cascadia Code', 'Fira Mono', monospace; font-size: .78rem; color: var(--muted); }
-    .log-entry.ok   { color: var(--green); }
-    .log-entry.loss { color: var(--red); }
-    .log-entry.bp   { color: var(--yellow); }
-
-    footer { margin-top: 28px; color: var(--muted); font-size: .78rem; }
-    footer a { color: var(--accent); text-decoration: none; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>solana-tpu-client-cc · Live Demo</title>
+<script src="https://unpkg.com/@solana/web3.js@1.98.0/lib/index.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+    --accent: #9945ff; --green: #14f195; --red: #f1141f;
+    --yellow: #ffb800; --text: #e2e8f0; --muted: #64748b;
+    --font: 'SF Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; color: var(--accent); }
+  header span { color: var(--muted); font-size: 12px; }
+  .badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  main { max-width: 980px; margin: 32px auto; padding: 0 16px; display: grid; gap: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; margin-top: 12px; }
+  label:first-of-type { margin-top: 0; }
+  input, select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: var(--font); font-size: 13px; outline: none; }
+  input:focus, select:focus { border-color: var(--accent); }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 11px 24px; font-family: var(--font); font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+  button:hover { opacity: .85; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .btn-sec { background: var(--border); color: var(--text); font-weight: 600; }
+  /* stats */
+  .stats6 { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat .val { font-size: 20px; font-weight: 700; }
+  .stat .key { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .purple { color: var(--accent); }
+  .green  { color: var(--green); }
+  .red    { color: var(--red); }
+  .yellow { color: var(--yellow); }
+  .cyan   { color: #00c2ff; }
+  .white  { color: var(--text); }
+  /* chart */
+  .chart-wrap { position: relative; height: 220px; }
+  /* log */
+  #log { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; height: 260px; overflow-y: auto; font-size: 12px; line-height: 1.7; }
+  .log-ok   { color: var(--green); }
+  .log-err  { color: var(--red); }
+  .log-warn { color: var(--yellow); }
+  .log-info { color: var(--text); }
+  .log-dim  { color: var(--muted); }
+  .warn-box { background: #1a0f2e; border: 1px solid var(--accent); border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #c9a9ff; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .spinner { display: inline-block; width: 11px; height: 11px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 5px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* window indicator */
+  .win-bar-bg { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; margin-top: 8px; }
+  .win-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width .3s; }
+</style>
 </head>
 <body>
-
 <header>
-  <div>
-    <h1>solana-tpu-client-cc</h1>
-    <div class="tagline">Slot-aware AIMD congestion control for Solana TPU · live simulation</div>
-  </div>
-  <span>v0.1.0</span>
+  <h1>solana-tpu-client-cc</h1>
+  <span>Slot-aware congestion control — AIMD send-window calibration</span>
+  <span class="badge">LIVE DEVNET</span>
 </header>
 
-<!-- KPI cards -->
-<div class="cards">
-  <div class="card">
-    <div class="card-label">Window</div>
-    <div class="card-value" id="kpi-window" style="color:var(--accent)">8</div>
-    <div class="card-unit">tx in-flight limit</div>
+<main>
+  <div class="warn-box">
+    ⚠ Private key stays in your browser only. Use a devnet throwaway wallet with small balance.
+    <code>solana airdrop 1 <address> --url devnet</code>
   </div>
-  <div class="card">
-    <div class="card-label">In-flight</div>
-    <div class="card-value" id="kpi-inflight" style="color:var(--blue)">0</div>
-    <div class="card-unit">active slots</div>
-  </div>
-  <div class="card">
-    <div class="card-label">RTT</div>
-    <div class="card-value" id="kpi-rtt" style="color:var(--green)">400</div>
-    <div class="card-unit">ms (smoothed)</div>
-  </div>
-  <div class="card">
-    <div class="card-label">Phase</div>
-    <div class="card-value" id="kpi-phase" style="font-size:1.1rem;padding-top:8px"><span class="phase-badge phase-slow">slow-start</span></div>
-    <div class="card-unit">&nbsp;</div>
-  </div>
-  <div class="card">
-    <div class="card-label">Throughput</div>
-    <div class="card-value" id="kpi-tps" style="color:var(--green)">0</div>
-    <div class="card-unit">tx / s</div>
-  </div>
-  <div class="card">
-    <div class="card-label">Loss rate</div>
-    <div class="card-value" id="kpi-loss" style="color:var(--red)">0%</div>
-    <div class="card-unit">backpressured / submitted</div>
-  </div>
-</div>
 
-<!-- Window utilization bar -->
-<div class="window-bar-wrap">
-  <div class="window-bar-label">Send window utilization (current / max 512)</div>
-  <div class="window-bar-bg"><div class="window-bar-fill" id="window-bar" style="width:1.6%"></div></div>
-  <div class="window-bar-labels"><span>0</span><span id="bar-mid">256</span><span>512</span></div>
-</div>
-
-<!-- Charts -->
-<div class="charts">
-  <div class="chart-box">
-    <div class="chart-title">Window size over time</div>
-    <canvas id="chart-window" height="140"></canvas>
-  </div>
-  <div class="chart-box">
-    <div class="chart-title">RTT estimate (ms)</div>
-    <canvas id="chart-rtt" height="140"></canvas>
-  </div>
-</div>
-
-<!-- Controls -->
-<div class="controls">
-  <button id="btn-start">▶ Start</button>
-  <button id="btn-stop" class="secondary">■ Stop</button>
-  <button id="btn-reset" class="secondary">↺ Reset</button>
-  <label>Loss rate
-    <input type="range" id="loss-rate" min="0" max="50" value="10" step="5">
-    <span id="loss-rate-val">10%</span>
-  </label>
-  <label>Base RTT
-    <select id="base-rtt">
-      <option value="200">200 ms</option>
-      <option value="350" selected>350 ms</option>
-      <option value="600">600 ms</option>
-      <option value="900">900 ms</option>
+  <!-- Config -->
+  <div class="card">
+    <h2>Congestion Control Settings</h2>
+    <label>RPC Endpoint</label>
+    <select id="rpcPreset" onchange="onRpcPreset()">
+      <option value="https://api.devnet.solana.com">Devnet (official)</option>
+      <option value="https://devnet.helius-rpc.com">Devnet (Helius)</option>
+      <option value="custom">Custom…</option>
     </select>
-  </label>
-</div>
+    <div id="customRpcWrap" style="display:none; margin-top:8px;">
+      <input id="customRpc" placeholder="https://…" />
+    </div>
 
-<!-- Event log -->
-<div class="log-box" id="log"></div>
+    <div class="row3" style="margin-top:12px;">
+      <div>
+        <label>Window Initial</label>
+        <input id="winInit" type="number" value="4" min="1" max="64" />
+      </div>
+      <div>
+        <label>Window Max</label>
+        <input id="winMax" type="number" value="32" min="1" max="128" />
+      </div>
+      <div>
+        <label>Slow-start Threshold</label>
+        <input id="ssthresh" type="number" value="16" min="1" max="64" />
+      </div>
+    </div>
 
-<footer>
-  <a href="https://github.com/nzengi/solana-tpu-client-cc" target="_blank">github.com/nzengi/solana-tpu-client-cc</a>
-  · MIT · built with Rust + Solana SDK 2.2
-</footer>
+    <div class="row2" style="margin-top:8px;">
+      <div>
+        <label>Sender Private Key (base58 or JSON array)</label>
+        <input id="privKey" type="password" placeholder="Devnet key…" />
+      </div>
+      <div>
+        <label>Batch Size (# transactions)</label>
+        <input id="batchSize" type="number" value="12" min="1" max="50" />
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button id="btnRun" onclick="runCongestionTest()">▶ Run Congestion Test</button>
+      <button class="btn-sec" onclick="checkBal()">💰 Balance</button>
+      <button class="btn-sec" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats6">
+    <div class="stat"><div class="val purple" id="sWindow">—</div><div class="key">Window</div></div>
+    <div class="stat"><div class="val green"  id="sAck">0</div><div class="key">ACKs</div></div>
+    <div class="stat"><div class="val red"    id="sLoss">0</div><div class="key">Losses</div></div>
+    <div class="stat"><div class="val yellow" id="sRtt">—</div><div class="key">Avg RTT (ms)</div></div>
+    <div class="stat"><div class="val cyan"   id="sTps">—</div><div class="key">TPS</div></div>
+    <div class="stat"><div class="val white"  id="sPhase">—</div><div class="key">CC Phase</div></div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card">
+    <h2>Window Size over Time <span id="phaseLabel" style="color:var(--accent);font-size:11px;font-style:normal;"></span></h2>
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+    </div>
+    <div style="margin-top:8px;">
+      <div style="font-size:11px;color:var(--muted);">Window fill: <span id="winPct">0%</span></div>
+      <div class="win-bar-bg"><div class="win-bar-fill" id="winBar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <h2>Live Log</h2>
+    <div id="log"><span class="log-dim">Waiting for test…</span></div>
+  </div>
+</main>
 
 <script>
-// ─── Mini chart helper ───────────────────────────────────────────────────────
-function MiniChart(id, color, maxPts = 60) {
-  const canvas = document.getElementById(id);
-  const ctx = canvas.getContext('2d');
-  const data = [];
-  return {
-    push(v) {
-      data.push(v);
-      if (data.length > maxPts) data.shift();
-      this.draw();
-    },
-    draw() {
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      canvas.width = W; canvas.height = H;
-      if (!data.length) return;
-      const mx = Math.max(...data, 1);
-      const mn = Math.min(...data);
-      ctx.clearRect(0, 0, W, H);
-      ctx.beginPath();
-      data.forEach((v, i) => {
-        const x = (i / (data.length - 1 || 1)) * W;
-        const y = H - ((v - mn) / (mx - mn || 1)) * (H - 10) - 5;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      });
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      // Fill
-      ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-      ctx.fillStyle = color + '22';
-      ctx.fill();
-    }
-  };
-}
+const { Connection, Keypair, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } = solanaWeb3;
 
-// ─── Simulation state ────────────────────────────────────────────────────────
-const SLOT_MS   = 400;
-const WIN_MAX   = 512;
-const WIN_MIN   = 1;
-
-let state = null;
-let timer = null;
-let chartWin, chartRtt;
-
-function initState() {
-  return {
-    window:     8,
-    inFlight:   0,
-    ssthresh:   32,
-    phase:      'slow-start',
-    rtt:        parseFloat(document.getElementById('base-rtt').value),
-    ackPending: 0,
-    submitted:  0,
-    acked:      0,
-    backpress:  0,
-    increases:  0,
-    reductions: 0,
-    t:          0,
-  };
-}
-
-function lossRate() {
-  return parseInt(document.getElementById('loss-rate').value) / 100;
-}
-function baseRtt() {
-  return parseFloat(document.getElementById('base-rtt').value);
-}
-
-// AIMD logic (mirrors Rust congestion.rs)
-function tick(s) {
-  s.t++;
-  const lr   = lossRate();
-  const bRtt = baseRtt();
-
-  // Simulate sends this tick
-  const canSend = Math.min(s.window - s.inFlight, 4);
-  for (let i = 0; i < canSend; i++) {
-    s.submitted++;
-    if (Math.random() < lr) {
-      // loss
-      s.inFlight = Math.max(0, s.inFlight - 1);
-      s.ssthresh = Math.max(Math.floor(s.window / 2), WIN_MIN);
-      s.window   = Math.max(s.ssthresh, WIN_MIN);
-      s.phase    = 'recovery';
-      s.ackPending = 0;
-      s.reductions++;
-      log(`loss  → window=${s.window}`, 'loss');
-    } else {
-      s.inFlight++;
-      // simulate ACK after base RTT
-      setTimeout(() => {
-        s.inFlight   = Math.max(0, s.inFlight - 1);
-        s.acked++;
-        s.ackPending++;
-        const rttSample = bRtt + (Math.random() - 0.5) * 60;
-        const alpha      = 0.125;
-        s.rtt = alpha * rttSample + (1 - alpha) * s.rtt;
-        const rttComplete = s.ackPending >= Math.max(s.window, 1);
-        if (rttComplete) {
-          s.ackPending = 0;
-          grow(s);
-          if (s.phase === 'recovery') s.phase = 'congestion-avoidance';
-        }
-      }, bRtt + (Math.random() - 0.5) * 60);
+// ── AIMD Congestion Controller (JS port of Rust logic) ──────────────────────
+class CongestionController {
+  constructor({ windowInitial = 4, windowMax = 32, ssthresh = 16, windowMin = 1 } = {}) {
+    this.window    = windowInitial;
+    this.windowMax = windowMax;
+    this.windowMin = windowMin;
+    this.ssthresh  = ssthresh;
+    this.inFlight  = 0;
+    this.phase     = 'SlowStart';   // SlowStart | CongestionAvoidance | Recovery
+    this.rttAlpha  = 0.125;
+    this.rttEst    = 400;           // ms
+    this.ackCount  = 0;             // acks in current window for CA
+  }
+  tryAcquire() {
+    if (this.inFlight >= this.window) return false;
+    this.inFlight++;
+    return true;
+  }
+  onAck(rtt) {
+    if (this.inFlight > 0) this.inFlight--;
+    this.rttEst = (1 - this.rttAlpha) * this.rttEst + this.rttAlpha * rtt;
+    if (this.phase === 'SlowStart') {
+      this.window = Math.min(this.window + 1, this.windowMax);
+      if (this.window >= this.ssthresh) this.phase = 'CongestionAvoidance';
+    } else if (this.phase === 'CongestionAvoidance') {
+      this.ackCount++;
+      if (this.ackCount >= this.window) {
+        this.window = Math.min(this.window + 1, this.windowMax);
+        this.ackCount = 0;
+      }
+    } else { // Recovery
+      this.phase = 'CongestionAvoidance';
     }
   }
-
-  // Backpressure check
-  if (s.inFlight >= s.window) {
-    s.backpress++;
+  onLoss() {
+    if (this.inFlight > 0) this.inFlight--;
+    this.ssthresh = Math.max(Math.floor(this.window / 2), this.windowMin);
+    this.window   = Math.max(this.ssthresh, this.windowMin);
+    this.phase    = 'Recovery';
+    this.ackCount = 0;
   }
 }
 
-function grow(s) {
-  const prev = s.window;
-  if (s.phase === 'slow-start') {
-    s.window = Math.min(s.window * 2, s.ssthresh, WIN_MAX);
-    if (s.window >= s.ssthresh) s.phase = 'congestion-avoidance';
-  } else {
-    s.window = Math.min(s.window + 1, WIN_MAX);
+// ── Chart setup ─────────────────────────────────────────────────────────────
+const ctx = document.getElementById('chart').getContext('2d');
+const chartData = { labels: [], window: [], rtt: [] };
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: chartData.labels,
+    datasets: [
+      {
+        label: 'Window Size',
+        data: chartData.window,
+        borderColor: '#9945ff',
+        backgroundColor: 'rgba(153,69,255,0.08)',
+        tension: 0.3, fill: true, yAxisID: 'y',
+      },
+      {
+        label: 'RTT (ms)',
+        data: chartData.rtt,
+        borderColor: '#14f195',
+        backgroundColor: 'transparent',
+        tension: 0.3, fill: false, yAxisID: 'y2',
+        borderDash: [4,4],
+      }
+    ]
+  },
+  options: {
+    animation: false,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#64748b', font: { family: "'SF Mono','Fira Code',monospace", size: 11 } } } },
+    scales: {
+      x:  { ticks: { color: '#64748b', maxTicksLimit: 12 }, grid: { color: '#1e2130' } },
+      y:  { position: 'left',  title: { display: true, text: 'Window', color: '#9945ff' }, ticks: { color: '#9945ff' }, grid: { color: '#1e2130' } },
+      y2: { position: 'right', title: { display: true, text: 'RTT ms', color: '#14f195' }, ticks: { color: '#14f195' }, grid: { drawOnChartArea: false } },
+    }
   }
-  if (s.window > prev) {
-    s.increases++;
+});
+
+function pushChart(label, win, rtt) {
+  chartData.labels.push(label);
+  chartData.window.push(win);
+  chartData.rtt.push(rtt != null ? +rtt.toFixed(0) : null);
+  if (chartData.labels.length > 60) {
+    chartData.labels.shift(); chartData.window.shift(); chartData.rtt.shift();
   }
+  chart.update();
 }
 
-// ─── UI helpers ──────────────────────────────────────────────────────────────
-const MAX_LOG = 80;
-let logLines  = [];
-function log(msg, cls = '') {
-  logLines.push({ msg: `[${new Date().toISOString().slice(11,19)}] ${msg}`, cls });
-  if (logLines.length > MAX_LOG) logLines.shift();
+// ── UI helpers ───────────────────────────────────────────────────────────────
+function getRpc() {
+  const p = document.getElementById('rpcPreset').value;
+  if (p === 'custom') return document.getElementById('customRpc').value.trim();
+  return p;
+}
+function onRpcPreset() {
+  document.getElementById('customRpcWrap').style.display =
+    document.getElementById('rpcPreset').value === 'custom' ? 'block' : 'none';
+}
+function log(msg, cls = 'log-info') {
   const el = document.getElementById('log');
-  el.innerHTML = logLines.map(l =>
-    `<div class="log-entry ${l.cls}">${l.msg}</div>`).join('');
+  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  el.innerHTML += `<div class="${cls}"><span class="log-dim">[${ts}]</span> ${msg}</div>`;
   el.scrollTop = el.scrollHeight;
 }
-
-function phaseClass(p) {
-  if (p === 'slow-start')            return 'phase-slow';
-  if (p === 'congestion-avoidance')  return 'phase-avoidance';
-  return 'phase-recovery';
+function parseKeypair(raw) {
+  raw = raw.trim();
+  if (!raw) throw new Error('Private key required');
+  if (raw.startsWith('[')) return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw)));
+  const bs58 = solanaWeb3.bs58;
+  if (bs58) return Keypair.fromSecretKey(bs58.decode(raw));
+  throw new Error('Use JSON array format: [1,2,3,…]');
+}
+function updateStats(cc, acks, losses, avgRtt, tps) {
+  const win = cc.window;
+  const max = cc.windowMax;
+  document.getElementById('sWindow').textContent = win;
+  document.getElementById('sAck').textContent    = acks;
+  document.getElementById('sLoss').textContent   = losses;
+  document.getElementById('sRtt').textContent    = avgRtt != null ? avgRtt.toFixed(0) : '—';
+  document.getElementById('sTps').textContent    = tps   != null ? tps.toFixed(1)   : '—';
+  document.getElementById('sPhase').textContent  = cc.phase;
+  document.getElementById('winPct').textContent  = ((win / max) * 100).toFixed(0) + '%';
+  document.getElementById('winBar').style.width  = Math.min(100, (win / max) * 100) + '%';
+  document.getElementById('phaseLabel').textContent = `[${cc.phase}]`;
+}
+function resetAll() {
+  document.getElementById('log').innerHTML = '<span class="log-dim">Reset.</span>';
+  chartData.labels.length = 0; chartData.window.length = 0; chartData.rtt.length = 0;
+  chart.update();
+  ['sWindow','sAck','sLoss','sRtt','sTps','sPhase'].forEach(id => {
+    document.getElementById(id).textContent = id === 'sAck' || id === 'sLoss' ? '0' : '—';
+  });
+  document.getElementById('winBar').style.width = '0%';
 }
 
-let lastAcked = 0, lastT = 0;
-function updateUI(s) {
-  document.getElementById('kpi-window').textContent   = s.window;
-  document.getElementById('kpi-inflight').textContent = s.inFlight;
-  document.getElementById('kpi-rtt').textContent      = s.rtt.toFixed(0);
-  document.getElementById('kpi-phase').innerHTML =
-    `<span class="phase-badge ${phaseClass(s.phase)}">${s.phase}</span>`;
-
-  const dt  = (s.t - lastT) || 1;
-  const tps = ((s.acked - lastAcked) / (dt * 0.12)).toFixed(1);
-  lastAcked = s.acked; lastT = s.t;
-  document.getElementById('kpi-tps').textContent = tps;
-
-  const lr = s.submitted ? (s.backpress / s.submitted * 100).toFixed(1) : '0.0';
-  document.getElementById('kpi-loss').textContent = lr + '%';
-
-  const pct = (s.window / WIN_MAX * 100).toFixed(1);
-  document.getElementById('window-bar').style.width = pct + '%';
-
-  chartWin.push(s.window);
-  chartRtt.push(s.rtt);
+async function checkBal() {
+  try {
+    const kp = parseKeypair(document.getElementById('privKey').value);
+    const conn = new Connection(getRpc(), 'confirmed');
+    const bal = await conn.getBalance(kp.publicKey);
+    log(`Balance: <span class="green">${bal} lamports (${(bal / LAMPORTS_PER_SOL).toFixed(6)} SOL)</span>`, 'log-ok');
+  } catch(e) { log(e.message, 'log-err'); }
 }
 
-// ─── Bootstrap ───────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-  chartWin = MiniChart('chart-window', '#9945ff');
-  chartRtt = MiniChart('chart-rtt',    '#3fb950');
+// ── Main congestion test ─────────────────────────────────────────────────────
+async function runCongestionTest() {
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
 
-  document.getElementById('loss-rate').addEventListener('input', e => {
-    document.getElementById('loss-rate-val').textContent = e.target.value + '%';
-  });
+  const winInit  = parseInt(document.getElementById('winInit').value)   || 4;
+  const winMax   = parseInt(document.getElementById('winMax').value)    || 32;
+  const ssthresh = parseInt(document.getElementById('ssthresh').value)  || 16;
+  const batchSz  = parseInt(document.getElementById('batchSize').value) || 12;
 
-  document.getElementById('btn-start').addEventListener('click', () => {
-    if (timer) return;
-    if (!state) state = initState();
-    log('simulation started');
-    timer = setInterval(() => { tick(state); updateUI(state); }, 120);
-  });
+  try {
+    const kp   = parseKeypair(document.getElementById('privKey').value);
+    const conn = new Connection(getRpc(), 'confirmed');
+    const cc   = new CongestionController({ windowInitial: winInit, windowMax: winMax, ssthresh });
 
-  document.getElementById('btn-stop').addEventListener('click', () => {
-    clearInterval(timer); timer = null;
-    log('simulation paused');
-  });
+    log(`Payer: <b>${kp.publicKey.toBase58()}</b>`);
+    log(`Config: window=${winInit}→${winMax}, ssthresh=${ssthresh}, batch=${batchSz}`);
 
-  document.getElementById('btn-reset').addEventListener('click', () => {
-    clearInterval(timer); timer = null;
-    state = null; logLines = []; lastAcked = 0; lastT = 0;
-    document.getElementById('log').innerHTML = '';
-    updateUI(initState());
-    log('reset');
-  });
+    const bal = await conn.getBalance(kp.publicKey);
+    const needed = batchSz * 5010 + 50000;
+    if (bal < needed) {
+      log(`⚠ Low balance (${bal} lamports). Need ~${needed}. Run: solana airdrop 1 --url devnet`, 'log-warn');
+    }
 
-  // Initial render
-  updateUI(initState());
-});
+    let acks = 0, losses = 0;
+    const rtts = [];
+    const batchStart = performance.now();
+
+    for (let i = 0; i < batchSz; i++) {
+      // Backpressure: wait until window has room
+      let waited = 0;
+      while (!cc.tryAcquire()) {
+        await new Promise(r => setTimeout(r, 50));
+        if (++waited > 40) { log(`Tx ${i+1}: window full — skipping`, 'log-warn'); break; }
+      }
+      if (waited > 40) continue;
+
+      const recipient = Keypair.generate().publicKey;
+      const { blockhash } = await conn.getLatestBlockhash('confirmed');
+      const tx = new Transaction().add(
+        SystemProgram.transfer({ fromPubkey: kp.publicKey, toPubkey: recipient, lamports: 5000 })
+      );
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = kp.publicKey;
+      tx.sign(kp);
+
+      const t0 = performance.now();
+      conn.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 })
+        .then(sig => {
+          const rtt = performance.now() - t0;
+          rtts.push(rtt);
+          acks++;
+          cc.onAck(rtt);
+          const avgRtt = rtts.reduce((a,b)=>a+b,0) / rtts.length;
+          const elapsed = (performance.now() - batchStart) / 1000;
+          const tps = acks / elapsed;
+          updateStats(cc, acks, losses, avgRtt, tps);
+          pushChart(`tx${i+1}`, cc.window, rtt);
+          log(
+            `<span class="log-dim">[tx${String(i+1).padStart(2,'0')}]</span> ✓ <span class="green">ACK</span>` +
+            `  sig=<a href="https://explorer.solana.com/tx/${sig}?cluster=devnet" target="_blank">${sig.slice(0,14)}…</a>` +
+            `  rtt=<span class="yellow">${rtt.toFixed(0)}ms</span>  win=<span class="purple">${cc.window}</span>` +
+            `  phase=<span>${cc.phase}</span>`,
+            'log-ok'
+          );
+        })
+        .catch(err => {
+          losses++;
+          cc.onLoss();
+          const elapsed = (performance.now() - batchStart) / 1000;
+          const tps = acks / elapsed;
+          updateStats(cc, acks, losses, rtts.length ? rtts.reduce((a,b)=>a+b,0)/rtts.length : null, tps);
+          pushChart(`tx${i+1}`, cc.window, null);
+          log(
+            `<span class="log-dim">[tx${String(i+1).padStart(2,'0')}]</span> ✗ <span class="red">LOSS</span>` +
+            `  win=<span class="purple">${cc.window}</span>  ${err.message.slice(0,60)}`,
+            'log-err'
+          );
+        });
+
+      // Small gap between sends so RPC isn't overwhelmed
+      await new Promise(r => setTimeout(r, 120));
+    }
+
+    // Wait for all in-flight to settle
+    await new Promise(r => setTimeout(r, 3000));
+    const elapsed = (performance.now() - batchStart) / 1000;
+    log(`─── Test complete: ${acks} ACK / ${losses} LOSS / ${elapsed.toFixed(1)}s ───`, 'log-dim');
+
+  } catch(e) {
+    log(`Error: ${e.message}`, 'log-err');
+  } finally {
+    btn.disabled = false;
+  }
+}
 </script>
 </body>
 </html>
